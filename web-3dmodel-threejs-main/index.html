@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js OBJ/MTL Viewer</title>
+    <title>3D ART GALLERY</title>
+    <link rel="stylesheet" href="./css/style.css">
     <style>
         body {
             margin: 0;
@@ -20,13 +21,29 @@
             font-family: Arial, sans-serif;
             z-index: 100;
             padding: 10px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             border-radius: 5px;
         }
     </style>
 </head>
 <body>
+    <!-- Popup Screen -->
+    <div id="popup-screen">
+        <div class="popup-content">
+            <h1>3d Art Gallery</h1>
+            <br>
+            <p>Use <b>W</b>, <b>A</b>, <b>S</b>, <b>D</b> to move around.</p>
+            <p>Use your <b>mouse cursor</b> to look around.</p>
+            <p>Let's Enjoy!</p>
+            <br>
+            <button id="close-popup">Start Exploring</button>
+        </div>
+    </div>
+
+    <!-- Loading Information -->
     <div id="loading-info"></div>
+
+    <!-- Import Map -->
     <script type="importmap">
     {
         "imports": {
@@ -35,6 +52,29 @@
         }
     }
     </script>
+
+    <!-- JavaScript for Popup Behavior -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const popupScreen = document.getElementById('popup-screen');
+            const closePopup = document.getElementById('close-popup');
+
+            const hidePopup = () => {
+                popupScreen.style.display = 'none';
+            };
+
+            // Hide popup on button click
+            closePopup.addEventListener('click', hidePopup);
+
+            // Hide popup on any keypress
+            document.addEventListener('keydown', hidePopup);
+
+            // Hide popup on mouse click anywhere
+            popupScreen.addEventListener('click', hidePopup);
+        });
+    </script>
+
+    <!-- Main Script -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
