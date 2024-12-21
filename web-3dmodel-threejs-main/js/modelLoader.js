@@ -1,131 +1,77 @@
 import * as THREE from 'three';
-import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export class ModelLoader {
     constructor(scene, loadingInfoElement) {
         this.scene = scene;
         this.loadingInfo = loadingInfoElement;
-        
-        this.mtlLoader = new MTLLoader();
-        this.objLoader = new OBJLoader();
+        this.loader = new GLTFLoader();
+        this.collisionMeshes = [];
     }
 
-    loadModel(mtlPath, objPath) {
-        this.loadingInfo.textContent = 'Loading materials...';
+    loadModel(glbPath) {
+        this.loadingInfo.textContent = 'Loading model...';
         
-        this.mtlLoader.setMaterialOptions({
-            side: THREE.DoubleSide,
-            wrap: THREE.ClampToEdgeWrapping
-        });
+        this.loader.load(
+            glbPath,
+            (gltf) => {
+                const model = gltf.scene;
 
-        this.mtlLoader.load(
-            mtlPath,
-            (materials) => {
-                materials.preload();
-                
-                // Configure all materials
-                Object.values(materials.materials).forEach(material => {
-                    // Convert basic materials to standard materials for better rendering
-                    if (material instanceof THREE.MeshBasicMaterial) {
-                        const standardMat = new THREE.MeshStandardMaterial({
-                            color: material.color,
-                            map: material.map,
-                            side: THREE.DoubleSide,
-                            roughness: 0.7,
-                            metalness: 0.3
-                        });
-                        Object.assign(material, standardMat);
-                    }
-                    
-                    material.side = THREE.DoubleSide;
-                    material.wireframe = false;
-                    material.needsUpdate = true;
-
-                    if (material.map) {
-                        material.map.colorSpace = THREE.SRGBColorSpace;
-                        material.map.needsUpdate = true;
-                    }
-                });
-
-                this.objLoader.setMaterials(materials);
-                this.loadOBJ(objPath);
-            },
-            (xhr) => {
-                if (xhr.lengthComputable) {
-                    const percentComplete = (xhr.loaded / xhr.total) * 100;
-                    this.loadingInfo.textContent = `Loading materials: ${Math.round(percentComplete)}%`;
-                }
-            },
-            (error) => {
-                this.loadingInfo.textContent = 'Error loading materials';
-                console.error('MTL loading error:', error);
-                this.loadOBJ(objPath);
-            }
-        );
-    }
-
-    loadOBJ(objPath) {
-        this.objLoader.load(
-            objPath,
-            (object) => {
-                // Center the object
-                const box = new THREE.Box3().setFromObject(object);
+                // Center the model
+                const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
-                object.position.sub(center);
+                model.position.sub(center);
 
                 // Scale if needed
                 const size = box.getSize(new THREE.Vector3());
                 const maxDim = Math.max(size.x, size.y, size.z);
                 if (maxDim > 10) {
                     const scale = 10 / maxDim;
-                    object.scale.set(scale, scale, scale);
+                    model.scale.set(scale, scale, scale);
                 }
 
-                // Process all meshes
-                object.traverse((child) => {
+                // Process materials and create collision meshes
+                model.traverse((child) => {
                     if (child instanceof THREE.Mesh) {
-                        // Create default material if none exists
-                        if (!child.material) {
-                            child.material = new THREE.MeshStandardMaterial({
-                                color: 0x808080,
-                                roughness: 0.7,
-                                metalness: 0.3,
-                                side: THREE.DoubleSide
-                            });
-                        }
-
-                        // Handle both single and multiple materials
-                        const materials = Array.isArray(child.material) ? child.material : [child.material];
-                        
-                        materials.forEach(material => {
-                            if (material instanceof THREE.MeshBasicMaterial) {
-                                const standardMat = new THREE.MeshStandardMaterial({
-                                    color: material.color,
-                                    map: material.map,
-                                    side: THREE.DoubleSide,
-                                    roughness: 0.7,
-                                    metalness: 0.3
-                                });
-                                Object.assign(material, standardMat);
-                            }
+                        // Setup materials
+                        if (child.material) {
+                            child.material.side = THREE.DoubleSide;
+                            child.material.needsUpdate = true;
                             
-                            material.wireframe = false;
-                            material.side = THREE.DoubleSide;
-                            material.needsUpdate = true;
-
-                            if (material.map) {
-                                material.map.colorSpace = THREE.SRGBColorSpace;
-                                material.map.needsUpdate = true;
+                            // Handle textures if they exist
+                            if (child.material.map) {
+                                child.material.map.colorSpace = THREE.SRGBColorSpace;
+                                child.material.map.needsUpdate = true;
                             }
-                        });
-
+                        }
                         child.castShadow = true;
                         child.receiveShadow = true;
+
+                        // Create collision mesh
+                        const collisionGeometry = child.geometry.clone();
+                        const collisionMesh = new THREE.Mesh(
+                            collisionGeometry,
+                            new THREE.MeshBasicMaterial({ 
+                                visible: false,
+                                transparent: true,
+                                opacity: 0
+                            })
+                        );
+
+                        // Copy transforms
+                        collisionMesh.position.copy(child.position);
+                        collisionMesh.rotation.copy(child.rotation);
+                        collisionMesh.scale.copy(child.scale);
+                        collisionMesh.updateMatrix();
+                        collisionMesh.updateMatrixWorld(true);
+
+                        // Store for collision detection
+                        this.collisionMeshes.push(collisionMesh);
+                        this.scene.add(collisionMesh);
                     }
                 });
 
-                this.scene.add(object);
+                this.scene.add(model);
                 this.loadingInfo.textContent = 'Model loaded successfully!';
                 setTimeout(() => this.loadingInfo.style.display = 'none', 2000);
             },
@@ -137,8 +83,12 @@ export class ModelLoader {
             },
             (error) => {
                 this.loadingInfo.textContent = 'Error loading model';
-                console.error('OBJ loading error:', error);
+                console.error('GLB loading error:', error);
             }
         );
+    }
+
+    getCollisionMeshes() {
+        return this.collisionMeshes;
     }
 }

@@ -9,11 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('loading-info')
     );
 
-    // Update these paths to match your file structure
-    modelLoader.loadModel(
-        './models/grafkom (1).mtl',
-        './models/grafkom (1).obj'
-    );
+  
+    modelLoader.loadModel('./models/grafkom4.glb');
+
+    
+    sceneManager.setCollisionMeshes(modelLoader.getCollisionMeshes());
 
     sceneManager.animate();
 });
