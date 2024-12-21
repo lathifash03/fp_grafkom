@@ -14,11 +14,42 @@ export class ModelLoader {
     loadModel(mtlPath, objPath) {
         this.loadingInfo.textContent = 'Loading materials...';
         
+        this.mtlLoader.setMaterialOptions({
+            side: THREE.DoubleSide,
+            wrap: THREE.ClampToEdgeWrapping
+        });
+
         this.mtlLoader.load(
             mtlPath,
             (materials) => {
                 materials.preload();
-                this.loadOBJ(objPath, materials);
+                
+                // Configure all materials
+                Object.values(materials.materials).forEach(material => {
+                    // Convert basic materials to standard materials for better rendering
+                    if (material instanceof THREE.MeshBasicMaterial) {
+                        const standardMat = new THREE.MeshStandardMaterial({
+                            color: material.color,
+                            map: material.map,
+                            side: THREE.DoubleSide,
+                            roughness: 0.7,
+                            metalness: 0.3
+                        });
+                        Object.assign(material, standardMat);
+                    }
+                    
+                    material.side = THREE.DoubleSide;
+                    material.wireframe = false;
+                    material.needsUpdate = true;
+
+                    if (material.map) {
+                        material.map.colorSpace = THREE.SRGBColorSpace;
+                        material.map.needsUpdate = true;
+                    }
+                });
+
+                this.objLoader.setMaterials(materials);
+                this.loadOBJ(objPath);
             },
             (xhr) => {
                 if (xhr.lengthComputable) {
@@ -29,20 +60,21 @@ export class ModelLoader {
             (error) => {
                 this.loadingInfo.textContent = 'Error loading materials';
                 console.error('MTL loading error:', error);
+                this.loadOBJ(objPath);
             }
         );
     }
 
-    loadOBJ(objPath, materials) {
-        this.objLoader.setMaterials(materials);
-
+    loadOBJ(objPath) {
         this.objLoader.load(
             objPath,
             (object) => {
+                // Center the object
                 const box = new THREE.Box3().setFromObject(object);
                 const center = box.getCenter(new THREE.Vector3());
                 object.position.sub(center);
 
+                // Scale if needed
                 const size = box.getSize(new THREE.Vector3());
                 const maxDim = Math.max(size.x, size.y, size.z);
                 if (maxDim > 10) {
@@ -50,8 +82,44 @@ export class ModelLoader {
                     object.scale.set(scale, scale, scale);
                 }
 
+                // Process all meshes
                 object.traverse((child) => {
                     if (child instanceof THREE.Mesh) {
+                        // Create default material if none exists
+                        if (!child.material) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                color: 0x808080,
+                                roughness: 0.7,
+                                metalness: 0.3,
+                                side: THREE.DoubleSide
+                            });
+                        }
+
+                        // Handle both single and multiple materials
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        
+                        materials.forEach(material => {
+                            if (material instanceof THREE.MeshBasicMaterial) {
+                                const standardMat = new THREE.MeshStandardMaterial({
+                                    color: material.color,
+                                    map: material.map,
+                                    side: THREE.DoubleSide,
+                                    roughness: 0.7,
+                                    metalness: 0.3
+                                });
+                                Object.assign(material, standardMat);
+                            }
+                            
+                            material.wireframe = false;
+                            material.side = THREE.DoubleSide;
+                            material.needsUpdate = true;
+
+                            if (material.map) {
+                                material.map.colorSpace = THREE.SRGBColorSpace;
+                                material.map.needsUpdate = true;
+                            }
+                        });
+
                         child.castShadow = true;
                         child.receiveShadow = true;
                     }
