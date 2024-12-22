@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
   
-    modelLoader.loadModel('./models/grafkom4.glb');
+    modelLoader.loadModel('./models/gallery.glb');
 
     
     sceneManager.setCollisionMeshes(modelLoader.getCollisionMeshes());
