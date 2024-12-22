@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { EXRLoader } from '../../node_modules/three/examples/jsm/loaders/EXRLoader.js';
 
 export class SceneManager {
     constructor() {
@@ -11,6 +11,7 @@ export class SceneManager {
         this.setupLights();
         this.setupFirstPersonControls();
         this.loadEnvironmentTexture();
+        this.setupBackgroundMusic();
         
         this.collisionMeshes = [];
         this.raycaster = new THREE.Raycaster();
@@ -198,6 +199,41 @@ loadEnvironmentTexture() {
                 this.cameraHolder.position.copy(newPosition);
             }
         }
+    }
+
+    setupBackgroundMusic() {
+        const listener = new THREE.AudioListener();
+        this.camera.add(listener);
+
+        this.backgroundMusic = new THREE.Audio(listener);
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('./audio/background-music.m4a', (buffer) => {
+            this.backgroundMusic.setBuffer(buffer);
+            this.backgroundMusic.setLoop(true);
+            this.backgroundMusic.setVolume(0.5);
+            this.backgroundMusic.play();
+        });
+
+        // Add toggle music control
+        this.musicPlaying = true;
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === 'm') {
+                this.toggleMusic();
+            }
+        });
+    }
+    
+    toggleMusic() {
+        if (this.musicPlaying) {
+            this.backgroundMusic.pause();
+        } else {
+            this.backgroundMusic.play();
+        }
+        this.musicPlaying = !this.musicPlaying;
+    }
+
+    setCollisionMeshes(meshes) {
+        this.collisionMeshes = meshes;
     }
 
     onWindowResize() {
