@@ -27,7 +27,7 @@ export class SceneManager {
             0.1,
             1000
         );
-        this.camera.position.set(-2.7, -1.7, 4);
+        this.camera.position.set(0, -1.9, 4);
         
         this.cameraHolder = new THREE.Object3D();
         this.cameraHolder.position.copy(this.camera.position);
